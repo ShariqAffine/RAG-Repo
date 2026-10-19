@@ -1,0 +1,16 @@
+.env
+.env.*
+!.env.example
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+data/chroma/
+data/processed/
+data/page_images/
+*.log
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

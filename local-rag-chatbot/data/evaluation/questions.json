@@ -1,0 +1,26 @@
+[
+  {
+    "question": "What is the World Bank Group's vision?",
+    "relevant_pdf_pages": [2]
+  },
+  {
+    "question": "How many people did the World Bank Group help feed according to the results infographic?",
+    "relevant_pdf_pages": [3]
+  },
+  {
+    "question": "What were total World Bank Group commitments in 2024, and how did they compare with 2023?",
+    "relevant_pdf_pages": [7]
+  },
+  {
+    "question": "What were IBRD commitments by region in 2024?",
+    "relevant_pdf_pages": [8]
+  },
+  {
+    "question": "What is IFC's total long-term investment commitment for 2024?",
+    "relevant_pdf_pages": [10, 11]
+  },
+  {
+    "question": "What does the report say about providing electricity access in Sub-Saharan Africa by 2030?",
+    "relevant_pdf_pages": [4]
+  }
+]
