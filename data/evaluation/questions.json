@@ -1,0 +1,33 @@
+
+[
+  {
+    "question": "What is the World Bank Group's vision?",
+    "reference_answer": "A world free of poverty on a livable planet.",
+    "relevant_pdf_pages": [2]
+  },
+  {
+    "question": "How many people did the World Bank Group help feed according to the results infographic?",
+    "reference_answer": "156 million people.",
+    "relevant_pdf_pages": [3]
+  },
+  {
+    "question": "What were total World Bank Group commitments in 2024, and how did they compare with 2023?",
+    "reference_answer": "Total commitments were $117,492 million in 2024, compared with $128,341 million in 2023. Commitments decreased by $10,849 million, approximately 8.45%.",
+    "relevant_pdf_pages": [7]
+  },
+  {
+    "question": "What were IBRD commitments by region in 2024?",
+    "reference_answer": "IBRD commitments in 2024, in millions of dollars, were: Eastern and Southern Africa: 2,914; Western and Central Africa: 1,725; East Asia and Pacific: 6,788; Europe and Central Asia: 9,302; Latin America and the Caribbean: 9,463; Middle East and North Africa: 4,233; South Asia: 3,143. Total commitments were $37,568 million.",
+    "relevant_pdf_pages": [8]
+  },
+  {
+    "question": "What is IFC's total long-term investment commitment for 2024?",
+    "reference_answer": "IFC's total long-term investment commitments were $43,962 million in 2024. This total includes $21,458 million for IFC's own account and $22,504 million in mobilization.",
+    "relevant_pdf_pages": [10, 11]
+  },
+  {
+    "question": "What does the report say about providing electricity access in Sub-Saharan Africa by 2030?",
+    "reference_answer": "The World Bank Group has committed to provide electricity to 300 million people in Sub-Saharan Africa by 2030, in partnership with the African Development Bank.",
+    "relevant_pdf_pages": [4]
+  }
+]

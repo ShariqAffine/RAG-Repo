@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Local RAG Chatbot</title>
+  <style>
+    :root { font-family: Inter, Segoe UI, Arial, sans-serif; color: #172033; background: #f5f7fb; }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    .shell { width: min(1040px, calc(100% - 32px)); margin: 28px auto; }
+    header { margin-bottom: 18px; }
+    h1 { font-size: 26px; margin: 0 0 6px; }
+    .sub { color: #5d687b; font-size: 14px; }
+    .layout { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 16px; align-items: start; }
+    .panel { background: #fff; border: 1px solid #dfe5ef; border-radius: 14px; padding: 18px; box-shadow: 0 4px 18px #26334d0b; }
+    h2 { font-size: 16px; margin: 0 0 12px; }
+    label { display: block; font-size: 13px; font-weight: 600; margin: 12px 0 6px; }
+    input[type=file], select, textarea { width: 100%; border: 1px solid #cfd7e5; border-radius: 8px; padding: 10px; background: #fff; color: #172033; font: inherit; }
+    button { border: 0; border-radius: 8px; padding: 10px 14px; background: #1457cf; color: white; font-weight: 600; cursor: pointer; }
+    button:disabled { opacity: .55; cursor: wait; }
+    .secondary { background: #e9eef8; color: #22314b; }
+    .full { width: 100%; margin-top: 10px; }
+    .status { color: #536176; font-size: 12px; line-height: 1.5; margin-top: 10px; overflow-wrap: anywhere; }
+    .chatbox { min-height: 390px; max-height: 60vh; overflow: auto; display: flex; flex-direction: column; gap: 14px; padding: 2px 2px 12px; }
+    .bubble { padding: 12px 14px; border-radius: 11px; white-space: pre-wrap; line-height: 1.55; overflow-wrap: anywhere; }
+    .user { background: #eaf1ff; align-self: flex-end; max-width: 90%; }
+    .assistant { background: #f5f7fa; border: 1px solid #e0e5ed; align-self: stretch; }
+    .message-label { display: block; font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: #6b7689; margin-bottom: 5px; }
+    .sources { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+    .source { border: 1px solid #dce3ee; background: white; border-radius: 8px; padding: 10px; font-size: 12px; }
+    .source-title { font-weight: 700; margin-bottom: 4px; }
+    .source-excerpt { color: #4c586c; white-space: pre-wrap; }
+    .composer { display: flex; gap: 8px; margin-top: 12px; }
+    .composer textarea { min-height: 48px; max-height: 140px; resize: vertical; }
+    .composer button { align-self: stretch; }
+    .check-row { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 13px; }
+    .check-row label { display: inline; margin: 0; font-weight: 500; }
+    .fine { font-size: 12px; color: #69758a; line-height: 1.5; }
+    @media (max-width: 760px) { .layout { grid-template-columns: 1fr; } .chatbox { max-height: none; min-height: 280px; } }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header>
+      <h1>Local RAG Chatbot</h1>
+      <div class="sub">FastAPI · Gemini + Groq APIs · hybrid retrieval · page citations</div>
+    </header>
+
+    <div class="layout">
+      <aside class="panel">
+        <h2>Knowledge base</h2>
+        <div class="fine">The World Bank annual report PDF is included. Upload another PDF to index it locally.</div>
+        <label for="pdf">Add a PDF</label>
+        <input id="pdf" type="file" accept="application/pdf,.pdf" />
+        <button id="upload" class="full">Upload and index PDF</button>
+        <div id="uploadStatus" class="status" role="status">Checking application status…</div>
+        <button id="refresh" class="secondary full">Refresh status</button>
+        <hr style="border:0;border-top:1px solid #e5e9f1;margin:18px 0" />
+        <h2>Retrieval settings</h2>
+        <label for="chatModel">Hosted chat model</label>
+        <select id="chatModel"><option value="">Loading API models…</option></select>
+        <div class="fine" style="margin-top:5px">Available providers depend on which API keys you configured in .env.</div>
+        <label for="topK">Chunks sent to the LLM</label>
+        <select id="topK">
+          <option value="3">3 chunks</option>
+          <option value="5" selected>5 chunks</option>
+          <option value="8">8 chunks</option>
+          <option value="10">10 chunks</option>
+        </select>
+        <div class="check-row">
+          <input id="reranker" type="checkbox" />
+          <label for="reranker">Use reranker (not available in download-free mode)</label>
+        </div>
+        <p class="fine">Hybrid retrieval combines Gemini vector embeddings with BM25 keyword matching using Reciprocal Rank Fusion (RRF). No local model weights are downloaded.</p>
+        <button id="clear" class="secondary full">Clear conversation</button>
+      </aside>
+
+      <main class="panel">
+        <div id="chatbox" class="chatbox" aria-live="polite">
+          <div class="bubble assistant"><span class="message-label">Assistant</span>Ask a question about the indexed PDF. Try: “What were the World Bank Group's total commitments in 2024?”</div>
+        </div>
+        <form id="chatForm" class="composer">
+          <textarea id="question" placeholder="Ask a question about your PDF…" required></textarea>
+          <button id="send" type="submit">Send</button>
+        </form>
+        <div class="fine" style="margin-top:8px">Responses use hosted Gemini/Groq APIs. Relevant document text and page images may be sent to those providers. Answers can be wrong; check the cited PDF page for important facts.</div>
+      </main>
+    </div>
+  </div>
+
+<script>
+  const chatbox = document.getElementById('chatbox');
+  const form = document.getElementById('chatForm');
+  const questionInput = document.getElementById('question');
+  const sendButton = document.getElementById('send');
+  const history = [];
+
+  function addBubble(role, text) {
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble ' + (role === 'user' ? 'user' : 'assistant');
+    const label = document.createElement('span');
+    label.className = 'message-label';
+    label.textContent = role === 'user' ? 'You' : 'Assistant';
+    bubble.appendChild(label);
+    const body = document.createElement('div');
+    body.textContent = text;
+    bubble.appendChild(body);
+    chatbox.appendChild(bubble);
+    chatbox.scrollTop = chatbox.scrollHeight;
+    return bubble;
+  }
+
+  function addSources(bubble, sources) {
+    if (!sources || !sources.length) return;
+    const wrapper = document.createElement('div');
+    wrapper.className = 'sources';
+    const heading = document.createElement('div');
+    heading.className = 'message-label';
+    heading.textContent = 'Retrieved sources';
+    wrapper.appendChild(heading);
+    for (const source of sources) {
+      const card = document.createElement('div');
+      card.className = 'source';
+      const title = document.createElement('div');
+      title.className = 'source-title';
+      title.textContent = `[${source.source_id}] ${source.source_file} · PDF page ${source.page_number} · ${source.content_type}`;
+      const excerpt = document.createElement('div');
+      excerpt.className = 'source-excerpt';
+      excerpt.textContent = source.excerpt || '';
+      card.append(title, excerpt);
+      wrapper.appendChild(card);
+    }
+    bubble.appendChild(wrapper);
+    chatbox.scrollTop = chatbox.scrollHeight;
+  }
+
+  async function refreshStatus() {
+    const status = document.getElementById('uploadStatus');
+    try {
+      const response = await fetch('/api/health');
+      const data = await response.json();
+      status.textContent = `Chat provider: ${data.chat_provider} · Model: ${data.chat_model} · Gemini key: ${data.gemini_key_configured ? 'configured' : 'missing'} · Groq key: ${data.groq_key_configured ? 'configured' : 'missing'} · Indexed chunks: ${data.indexed_chunks} · Vision: ${data.vision_enabled ? 'enabled' : 'disabled'}`;
+      const modelResponse = await fetch('/api/models');
+      const modelData = await modelResponse.json();
+      const selector = document.getElementById('chatModel');
+      const previous = selector.value;
+      selector.replaceChildren();
+      const choices = modelData.models || [];
+      if (!choices.length) {
+        const option = document.createElement('option');
+        option.value = '';
+        option.textContent = modelData.available ? 'No API models configured' : 'Configure API keys in .env';
+        selector.appendChild(option);
+      } else {
+        for (const name of choices) {
+          const option = document.createElement('option');
+          option.value = name;
+          option.textContent = name;
+          selector.appendChild(option);
+        }
+        selector.value = choices.includes(previous) ? previous : (choices.includes(modelData.default_model) ? modelData.default_model : choices[0]);
+      }
+    } catch (error) {
+      status.textContent = 'Could not contact FastAPI. Start the application and refresh.';
+    }
+  }
+
+  document.getElementById('refresh').addEventListener('click', refreshStatus);
+  document.getElementById('clear').addEventListener('click', () => {
+    history.length = 0;
+    chatbox.replaceChildren();
+    addBubble('assistant', 'Conversation cleared. Indexed documents remain available.');
+  });
+
+  document.getElementById('upload').addEventListener('click', async () => {
+    const input = document.getElementById('pdf');
+    const status = document.getElementById('uploadStatus');
+    if (!input.files.length) { status.textContent = 'Choose a PDF first.'; return; }
+    const data = new FormData();
+    data.append('file', input.files[0]);
+    const button = document.getElementById('upload');
+    button.disabled = true;
+    status.textContent = 'Extracting text and tables, describing visuals, embedding chunks, and saving the index. This may take several minutes…';
+    try {
+      const response = await fetch('/api/ingest', { method: 'POST', body: data });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.detail || 'Ingestion failed');
+      status.textContent = `${result.message} Indexed ${result.chunks_indexed} chunks; total index: ${result.indexed_total_chunks}.`;
+      input.value = '';
+    } catch (error) {
+      status.textContent = 'Ingestion failed: ' + error.message;
+    } finally {
+      button.disabled = false;
+      refreshStatus();
+    }
+  });
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const question = questionInput.value.trim();
+    if (!question) return;
+    addBubble('user', question);
+    questionInput.value = '';
+    sendButton.disabled = true;
+    const pending = addBubble('assistant', 'Searching documents and generating an answer…');
+    try {
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          question,
+          history: history.slice(-6),
+          top_k: Number(document.getElementById('topK').value),
+          use_reranker: document.getElementById('reranker').checked,
+          model: document.getElementById('chatModel').value || null
+        })
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.detail || 'Chat request failed');
+      pending.querySelector('div:last-child').textContent = result.answer;
+      addSources(pending, result.sources);
+      history.push({ role: 'user', content: question }, { role: 'assistant', content: result.answer });
+    } catch (error) {
+      pending.querySelector('div:last-child').textContent = 'Error: ' + error.message;
+    } finally {
+      sendButton.disabled = false;
+      questionInput.focus();
+      chatbox.scrollTop = chatbox.scrollHeight;
+    }
+  });
+
+  refreshStatus();
+</script>
+</body>
+</html>
